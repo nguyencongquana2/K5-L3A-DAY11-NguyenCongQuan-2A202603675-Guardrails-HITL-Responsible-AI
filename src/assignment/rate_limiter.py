@@ -46,4 +46,23 @@ class RateLimitPlugin(base_plugin.BasePlugin):
         #           f"Rate limit exceeded. Try again in {wait:.0f}s."
         #       )
         # 3. Else: append now, return None
-        raise NotImplementedError("Implement RateLimitPlugin.on_user_message_callback")
+        cutoff = now - self.window_seconds
+
+        # Loại các request đã nằm ngoài cửa sổ thời gian.
+        while window and window[0] <= cutoff:
+            window.popleft()
+
+        # Đã sử dụng hết quota trong cửa sổ hiện tại.
+        if len(window) >= self.max_requests:
+            wait = max(
+                0.0,
+                self.window_seconds - (now - window[0]),
+            )
+            self.blocked_count += 1
+            return self._block_response(
+                f"Rate limit exceeded. Try again in {wait:.0f}s."
+            )
+
+        # Request hợp lệ được ghi vào cửa sổ.
+        window.append(now)
+        return None
